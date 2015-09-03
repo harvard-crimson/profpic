@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>THC FB PROF PIC GENERATOR</title>
+  </head>
+
+  <body>
+    <script>
+      /*
+       * JavaScript Canvas to Blob 2.0.5
+       * https://github.com/blueimp/JavaScript-Canvas-to-Blob
+       *
+       * Copyright 2012, Sebastian Tschan
+       * https://blueimp.net
+       *
+       * Licensed under the MIT license:
+       * http://www.opensource.org/licenses/MIT
+       *
+       * Based on stackoverflow user Stoive's code snippet:
+       * http://stackoverflow.com/q/4998908
+       */
+
+      /*jslint nomen: true, regexp: true */
+      /*global window, atob, Blob, ArrayBuffer, Uint8Array, define */
+
+      (function (window) {
+          'use strict';
+          var CanvasPrototype = window.HTMLCanvasElement &&
+                  window.HTMLCanvasElement.prototype,
+              hasBlobConstructor = window.Blob && (function () {
+                  try {
+                      return Boolean(new Blob());
+                  } catch (e) {
+                      return false;
+                  }
+              }()),
+              hasArrayBufferViewSupport = hasBlobConstructor && window.Uint8Array &&
+                  (function () {
+                      try {
+                          return new Blob([new Uint8Array(100)]).size === 100;
+                      } catch (e) {
+                          return false;
+                      }
+                  }()),
+              BlobBuilder = window.BlobBuilder || window.WebKitBlobBuilder ||
+                  window.MozBlobBuilder || window.MSBlobBuilder,
+              dataURLtoBlob = (hasBlobConstructor || BlobBuilder) && window.atob &&
+                  window.ArrayBuffer && window.Uint8Array && function (dataURI) {
+                      var byteString,
+                          arrayBuffer,
+                          intArray,
+                          i,
+                          mimeString,
+                          bb;
+                      if (dataURI.split(',')[0].indexOf('base64') >= 0) {
+                          // Convert base64 to raw binary data held in a string:
+                          byteString = atob(dataURI.split(',')[1]);
+                      } else {
+                          // Convert base64/URLEncoded data component to raw binary data:
+                          byteString = decodeURIComponent(dataURI.split(',')[1]);
+                      }
+                      // Write the bytes of the string to an ArrayBuffer:
+                      arrayBuffer = new ArrayBuffer(byteString.length);
+                      intArray = new Uint8Array(arrayBuffer);
+                      for (i = 0; i < byteString.length; i += 1) {
+                          intArray[i] = byteString.charCodeAt(i);
+                      }
+                      // Separate out the mime component:
+                      mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0];
+                      // Write the ArrayBuffer (or ArrayBufferView) to a blob:
+                      if (hasBlobConstructor) {
+                          return new Blob(
+                              [hasArrayBufferViewSupport ? intArray : arrayBuffer],
+                              {type: mimeString}
+                          );
+                      }
+                      bb = new BlobBuilder();
+                      bb.append(arrayBuffer);
+                      return bb.getBlob(mimeString);
+                  };
+          if (window.HTMLCanvasElement && !CanvasPrototype.toBlob) {
+              if (CanvasPrototype.mozGetAsFile) {
+                  CanvasPrototype.toBlob = function (callback, type, quality) {
+                      if (quality && CanvasPrototype.toDataURL && dataURLtoBlob) {
+                          callback(dataURLtoBlob(this.toDataURL(type, quality)));
+                      } else {
+                          callback(this.mozGetAsFile('blob', type));
+                      }
+                  };
+              } else if (CanvasPrototype.toDataURL && dataURLtoBlob) {
+                  CanvasPrototype.toBlob = function (callback, type, quality) {
+                      callback(dataURLtoBlob(this.toDataURL(type, quality)));
+                  };
+              }
+          }
+          if (typeof define === 'function' && define.amd) {
+              define(function () {
+                  return dataURLtoBlob;
+              });
+          } else {
+              window.dataURLtoBlob = dataURLtoBlob;
+          }
+      }(window));
+    </script>
+
+    <script>
+      var canOverlay = false;
+      var profpic;
+      var authResponse;
+
+      function $() {
+        return document.querySelector.apply(document, arguments);
+      }
+
+      function log(txt) {
+        $("#console").innerText = txt;
+      }
+
+      function login() {
+        log("Logging in...");
+        FB.login(function (response) {
+          if (response.authResponse) {
+            log("Logged in.");
+            authResponse = response.authResponse;
+            go();
+          } else {
+            log("Login failed. Try again.");
+          }
+        }, {
+          scope: 'publish_actions'
+        });
+      }
+
+      function logout() {
+        log("Logging out...");
+        FB.api(
+          "/me/permissions",
+          "delete",
+          function (response) {
+            if (response && !response.error) {
+              log("Logged out.");
+              window.location.reload();
+            } else {
+              console.log(response);
+              log("Couldn't log you out. Try again?");
+            }
+          }
+        );
+      }
+
+      function overlay() {
+        if (!canOverlay) return;
+
+        var canvas = $("#canvas");
+        canvas.width = profpic.naturalWidth;
+        canvas.height = profpic.naturalHeight;
+        var context = canvas.getContext('2d');
+        context.drawImage(profpic, 0, 0);
+        context.drawImage($("#overlay-" + $("#sel").value), 0, 0, profpic.naturalWidth, profpic.naturalHeight);
+      }
+
+      function upload() {
+        log("Exporting image...");
+        $("#canvas").toBlob(function (blob) {
+          var fd = new FormData();
+          fd.append("access_token", authResponse.accessToken);
+          fd.append("source", blob, {type: 'text/jpg'});
+          fd.append("no_story", true);
+          var req = new XMLHttpRequest();
+          req.addEventListener("progress", function (e) {
+            if (e.lengthComputable) {
+              var percentComplete = e.loaded / e.total;
+              log("Uploading... " + percentComplete + "%");
+            } else {
+              log("Uploading...");
+            }
+          }, false);
+          req.addEventListener("load", function () {
+            log("Upload complete! Generating link...");
+
+            var resp = JSON.parse(req.responseText);
+
+            FB.api(
+              "/" + resp.id,
+              {fields: 'link'},
+              function (response) {
+                if (response && !response.error) {
+                  window.open(response.link + "&makeprofile=1");
+                  log("All set! Come again soon.");
+                } else {
+                  log("Unable to get link to photo.")
+                }
+              }
+            )
+
+          }, false);
+          req.addEventListener("error", function () {
+            log("Something went wrong. Try again?");
+          }, false);
+          req.open("POST", "https://graph.facebook.com/me/photos");
+          req.send(fd);
+        }, 'image/jpeg');
+      }
+
+      function go() {
+        FB.api('/me/permissions', function (response) {
+          var permissions = response.data.filter(function (o) {
+            return o.permission == "publish_actions" && o.status == "granted";
+          });
+
+          if (permissions.length !== 1) {
+            $("#moreperms").style.display = "block";
+            $("#loginbutton").style.display = "block";
+          } else {
+            $("#moreperms").style.display = "none";
+            $("#loginbutton").style.display = "none";
+            $("#logoutbutton").style.display = "inline";
+
+            FB.api(
+                "/me/picture?width=8000&height=8000",
+                function (response) {
+                  if (response && !response.error) {
+                    $("#sel").style.display = "inline";
+                    $("#uploadlink").style.display = "block";
+
+                    profpic = new Image();
+                    profpic.crossOrigin = "Anonymous";
+                    profpic.src = response.data.url;
+
+                    profpic.onload = function () {
+                      canOverlay = true;
+                      overlay();
+                    }
+                  } else {
+                    log("Could not load profile picture. Try again? :S");
+                  }
+                }
+            );
+          }
+        });
+      }
+
+      window.fbAsyncInit = function() {
+        FB.init({
+          appId: '736552736471469',
+          xfbml: true,
+          version: 'v2.4',
+          status: true,
+        });
+
+        FB.getLoginStatus(function (response) {
+          if (response.status === 'connected') {
+            log("Logged in.");
+
+            authResponse = response.authResponse;
+
+            go();
+          }
+          else {
+            log("Please login.");
+            $("#loginbutton").style.display = "block";
+          }
+        });
+      };
+
+      (function(d, s, id){
+         var js, fjs = d.getElementsByTagName(s)[0];
+         if (d.getElementById(id)) {return;}
+         js = d.createElement(s); js.id = id;
+         js.src = "//connect.facebook.net/en_US/sdk.js";
+         fjs.parentNode.insertBefore(js, fjs);
+       }(document, 'script', 'facebook-jssdk'));
+    </script>
+
+    <h1>the harvard crimson</h1>
+    <h2>facebook profile picture generator</h2>
+    <p>Fall 2015</p>
+
+    <span id="moreperms" style="color: red; display: none;">
+      Need permissions to publish. We don't post, except to upload this photo. Please login again.
+    </span>
+    <button id="loginbutton" onclick="login()" style="display: none;">Login</button>
+    <select id="sel" style="display: none" onchange="overlay()">
+      <option>left</option>
+      <option>right</option>
+    </select><br>
+    <canvas id="canvas" width="0" height="0"></canvas>
+
+    <br><a id="uploadlink" href="javascript: upload()" style="display: none">Make this my profile picture.</a><br>
+
+    <strong>Status: </strong><span id="console">Loading...</span>
+    <button id="logoutbutton" onclick="logout()" style="display: none;">Logout</button>
+
+    <img id="overlay-left" src="left.png" style="display: none">
+    <img id="overlay-right" src="right.png" style="display: none">
+  </body>
+</html>
