@@ -186,7 +186,10 @@
               function (response) {
                 if (response && !response.error) {
                   window.open(response.link + "&makeprofile=1");
-                  log("All set! Come again soon.");
+                  $("#uploadlink").style.display = "none";
+                  $("#setlink").style.display = "block";
+                  $("#setlink").href = response.link + "&makeprofile=1";
+                  log("Set that as your profile picture. Come again soon!");
                 } else {
                   log("Unable to get link to photo.")
                 }
@@ -286,7 +289,10 @@
     </select><br>
     <canvas id="canvas" width="0" height="0"></canvas>
 
-    <br><a id="uploadlink" href="javascript: upload()" style="display: none">Make this my profile picture.</a><br>
+    <br>
+    <a id="uploadlink" href="javascript: upload()" style="display: none">Upload to Facebook!</a>
+    <a id="setlink" href="" style="display: none; font-size: 48px; position: absolute; height: 100px; width: 500px; background: cyan; border:1px solid black; padding: 10px; top: 50%; left: 50%; margin: -50px 0 0 -150px; text-align: center;">Set as profile picture!</a>
+    <br>
 
     <strong>Status: </strong><span id="console">Loading...</span>
     <button id="logoutbutton" onclick="logout()" style="display: none;">Logout</button>
