@@ -275,16 +275,15 @@
        }(document, 'script', 'facebook-jssdk'));
     </script>
 
-    <h1>the harvard crimson</h1>
-    <h2>facebook profile picture generator</h2>
-    <p>Fall 2015</p>
+    <h1>The Harvard Crimson</h1>
+    <h2>Facebook profile picture generator</h2>
+    <p>Spring 2017</p>
 
     <span id="moreperms" style="color: red; display: none;">
       Need permissions to publish. We don't post, except to upload this photo. Please login again.
     </span>
     <button id="loginbutton" onclick="login()" style="display: none; background-color: #1e5d96; color: #fff; border: 0; cursor: pointer; font-size: 14px; font-family: helvetica, arial, sans-serif; font-weight: 500;">Login with Facebook</button>
     <select id="sel" style="display: none" onchange="overlay()">
-      <option>left</option>
       <option>right</option>
     </select><br>
     <canvas id="canvas" width="0" height="0"></canvas>
@@ -297,7 +296,6 @@
     <strong>Status: </strong><span id="console">Loading...</span>
     <button id="logoutbutton" onclick="logout()" style="display: none;">Logout</button>
 
-    <img id="overlay-left" src="left.png" style="display: none">
     <img id="overlay-right" src="right.png" style="display: none">
   </body>
 </html>
